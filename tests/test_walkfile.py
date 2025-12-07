@@ -9,13 +9,15 @@ def test_parse_regular_line():
     assert entry.type == "INTEGER"
     assert entry.value == "1500"
 
+
 def test_parse_null_line():
     from milksnake.walkfile import _parse_line, NullEntry
 
-    line = ".1.3.6.1.2.1.2.2.1.4.4 = \"\""
+    line = '.1.3.6.1.2.1.2.2.1.4.4 = ""'
     entry = _parse_line(line)
     assert isinstance(entry, NullEntry)
     assert entry.oid == "1.3.6.1.2.1.2.2.1.4.4"
+
 
 def test_parse_empty_value():
     from milksnake.walkfile import _parse_line, VariableBindingEntry
@@ -27,13 +29,17 @@ def test_parse_empty_value():
     assert entry.type == "STRING"
     assert entry.value == ""
 
+
 def test_parse_walkfile():
     from io import StringIO
     from milksnake.walkfile import parse_walkfile, VariableBindingEntry, NullEntry
-    file_mock = StringIO(""".1.3.6.1.2.1.2.2.1.4.4 = INTEGER: 1500
+
+    file_mock = StringIO(
+        """.1.3.6.1.2.1.2.2.1.4.4 = INTEGER: 1500
 .1.3.6.1.2.1.2.2.1.4.5 = \"\"
 .1.3.6.1.2.1.2.2.1.4.6 = STRING: 
-""")
+"""
+    )
     entries = list(parse_walkfile(file_mock))
     assert len(entries) == 3
     assert isinstance(entries[0], VariableBindingEntry)

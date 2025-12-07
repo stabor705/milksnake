@@ -8,13 +8,18 @@ from typing import List, Dict, Any
 from milksnake.walkfile import Entry
 
 Database = Dict[str, Entry]
+
+
 class Agent:
     def __init__(self, entries: List[Entry], port: int = 9161):
         self.database = self._build_database(entries)
 
         self._dispatcher = AsyncioDispatcher()
         self._dispatcher.register_recv_callback(self._dispatcher_receive_callback)
-        self._dispatcher.register_transport(udp.DOMAIN_NAME, udp.UdpAsyncioTransport().open_server_mode(("127.0.0.1", port)))
+        self._dispatcher.register_transport(
+            udp.DOMAIN_NAME,
+            udp.UdpAsyncioTransport().open_server_mode(("127.0.0.1", port)),
+        )
 
     def run(self):
         self._dispatcher.job_started(1)
@@ -27,7 +32,7 @@ class Agent:
 
         finally:
             self._dispatcher.close_dispatcher()
-    
+
     def stop(self):
         self._dispatcher.job_finished(1)
         self._dispatcher.close_dispatcher()

@@ -1,11 +1,19 @@
 import threading
 from pysnmp.hlapi.asyncio import (
-    SnmpEngine, get_cmd, CommunityData, UdpTransportTarget,
-    ContextData, ObjectType, ObjectIdentity
+    SnmpEngine,
+    get_cmd,
+    CommunityData,
+    UdpTransportTarget,
+    ContextData,
+    ObjectType,
+    ObjectIdentity,
 )
 import pytest
 
-@pytest.mark.skip(reason = "running agent on separate thread does not work for some reason")
+
+@pytest.mark.skip(
+    reason="running agent on separate thread does not work for some reason"
+)
 @pytest.mark.asyncio
 async def test_agent():
     from milksnake.agent import Agent
@@ -13,7 +21,7 @@ async def test_agent():
 
     entries = [
         VariableBindingEntry(oid="1.2.3", type="STRING", value="test"),
-        VariableBindingEntry(oid="1.2.4", type="INTEGER", value="42")
+        VariableBindingEntry(oid="1.2.4", type="INTEGER", value="42"),
     ]
 
     agent = Agent(entries, port=9161)
@@ -37,8 +45,5 @@ async def test_agent():
     assert str(oid) == "1.2.3"
     assert str(val) == "test"
 
-
     agent.stop()
     thread.join()
-
-
