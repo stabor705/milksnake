@@ -40,6 +40,8 @@ include = ["milksnake*"]
 dev = [
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
+    "ruff>=0.14.8",
+    "pytest-asyncio>=1.3.0",
 ]
 
 [tool.pytest.ini_options]
