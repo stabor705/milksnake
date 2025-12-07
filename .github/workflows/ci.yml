@@ -27,6 +27,14 @@ jobs:
         run: |
           uv sync --group dev
 
+      - name: Run ruff linter
+        run: |
+          uv run ruff check .
+      
+      - name: Check code formatting
+        run: |
+          uv run black --check .
+
       - name: Run tests with coverage
         run: |
           uv run python -m pytest
