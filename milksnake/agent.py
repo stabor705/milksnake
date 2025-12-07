@@ -7,22 +7,22 @@ sysDescrOid = "1.3.6.1.2.1.1.1"
 
 class Agent:
     def __init__(self):
-        self.dispatcher = AsyncioDispatcher()
-        self.dispatcher.register_recv_callback(self.dispatcher_receive_callback)
-        self.dispatcher.register_transport(udp.DOMAIN_NAME, udp.UdpAsyncioTransport().open_server_mode(("localhost", 9161)))
+        self._dispatcher = AsyncioDispatcher()
+        self._dispatcher.register_recv_callback(self.dispatcher_receive_callback)
+        self._dispatcher.register_transport(udp.DOMAIN_NAME, udp.UdpAsyncioTransport().open_server_mode(("localhost", 9161)))
 
     def run(self):
-        self.dispatcher.job_started(1)
+        self._dispatcher.job_started(1)
         try:
             print("Started. Press Ctrl-C to stop")
             # Dispatcher will never finish as job#1 never reaches zero
-            self.dispatcher.run_dispatcher()
+            self._dispatcher.run_dispatcher()
 
         except KeyboardInterrupt:
             print("Shutting down...")
 
         finally:
-            self.dispatcher.close_dispatcher()
+            self._dispatcher.close_dispatcher()
 
     def dispatcher_receive_callback(self, dispatcher, domain, address, message):
         version = api.decodeMessageVersion(message)
