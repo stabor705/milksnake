@@ -17,7 +17,9 @@ from milksnake.walkfile import VariableBindingEntry
 @pytest.fixture
 def test_entries():
     return [
-        VariableBindingEntry(oid="1.3.6.1.2.1.1.1.0", type="STRING", value="Test Device"),
+        VariableBindingEntry(
+            oid="1.3.6.1.2.1.1.1.0", type="STRING", value="Test Device"
+        ),
         VariableBindingEntry(oid="1.3.6.1.2.1.1.2.0", type="INTEGER", value="42"),
     ]
 
@@ -53,17 +55,17 @@ def test_verify_community(test_entries, test_config):
 
 def test_find_entry_for_oid(test_entries, test_config):
     agent = Agent(test_entries, test_config)
-    
+
     entry = agent._find_entry_for_oid("1.3.6.1.2.1.1.1.0")
     assert entry is not None
     assert entry.type == "STRING"
     assert entry.value == "Test Device"
-    
+
     entry = agent._find_entry_for_oid("1.3.6.1.2.1.1.2.0")
     assert entry is not None
     assert entry.type == "INTEGER"
     assert entry.value == "42"
-    
+
     entry = agent._find_entry_for_oid("9.9.9.9")
     assert entry is None
 

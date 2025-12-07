@@ -3,7 +3,7 @@ from pysnmp.carrier.asyncio.dgram import udp
 from pyasn1.codec.ber import encoder, decoder
 from pysnmp.proto import api
 
-from typing import List, Dict, Any
+from typing import List, Dict
 
 from milksnake.config import Config
 from milksnake.walkfile import Entry, VariableBindingEntry
@@ -43,27 +43,27 @@ class Agent:
         version = api.decodeMessageVersion(message)
         module = api.PROTOCOL_MODULES[version]
         request, message = decoder.decode(message, asn1Spec=module.Message())
-        
+
         community = module.apiMessage.get_community(request)
         community_str = str(community.prettyPrint())
         if not self._verify_community(community_str, version):
             print(f"Invalid community string from {address}")
             return message
-        
+
         response = module.apiMessage.get_response(request)
         responsePdu = module.apiMessage.get_pdu(response)
         requestPdu = module.apiMessage.get_pdu(request)
 
         oid, _ = module.apiPDU.get_varbinds(requestPdu)[0]
         entry = self._find_entry_for_oid(str(oid))
-        
+
         if entry is None:
             print(f"OID not found: {oid}")
             module.apiPDU.set_error_status(responsePdu, 2)
         else:
             asn_value = self._create_asn_value(entry.type, entry.value, module)
             module.apiPDU.set_varbinds(responsePdu, [(oid, asn_value)])
-        
+
         dispatcher.send_message(encoder.encode(response), domain, address)
         return message
 

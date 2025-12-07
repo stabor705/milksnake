@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import yaml
 
+
 @dataclass
 class Config:
     port: int = 9161

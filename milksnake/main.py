@@ -1,5 +1,4 @@
 import argparse
-from pathlib import Path
 
 from milksnake.agent import Agent
 from milksnake.config import Config
@@ -77,7 +76,7 @@ if __name__ == "__main__":
     args = _parse_args()
     config = _load_config(args)
 
-    print(f"Configuration:")
+    print("Configuration:")
     print(f"  Port: {config.port}")
     print(f"  Read community: {config.read_community}")
     print(f"  Write community: {config.write_community}")
