@@ -1,0 +1,5 @@
+port: 9161
+read_community: "public"
+write_community: "private"
+trap_community: "public"
+walkfile: "walkfile.txt"
