@@ -31,11 +31,11 @@ jobs:
         run: |
           uv run python -m pytest
 
-      - name: Upload coverage.xml artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-xml
-          path: coverage.xml
+    #   - name: Upload coverage.xml artifact
+    #     uses: actions/upload-artifact@v4
+    #     with:
+    #       name: coverage-xml
+    #       path: coverage.xml
 
       - name: Append coverage summary
         if: success()
