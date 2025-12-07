@@ -1,0 +1,47 @@
+[build-system]
+requires = [
+  "setuptools>=68",
+  "wheel",
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "milksnake"
+version = "0.1.0"
+description = "SNMP simulator that responds based on provided MIB files"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    { name = "Stanislaw Borowy", email = "stabor@startmail.com" },
+    { name = "Przemyslaw Maresz" }
+]
+license = { text = "GPL-3.0-or-later" }
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+  "Operating System :: OS Independent",
+]
+
+# If you prefer to keep runtime dependencies in requirements.txt, you can omit this.
+# Listing them here makes builds self-contained per PEP 621.
+dependencies = [
+  "pyasn1==0.6.1",
+  "pysnmp==7.1.22",
+]
+
+[tool.setuptools]
+# Use package discovery for the src layout or plain package folder.
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["milksnake*"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --cov=milksnake --cov-report=term-missing --cov-report=xml"
