@@ -5,6 +5,7 @@ Configuration model and helpers for the Milksnake SNMP simulator.
 
 Settings can be loaded from a small YAML file or constructed from defaults.
 """
+
 from dataclasses import dataclass
 from pathlib import Path
 import yaml
@@ -27,6 +28,7 @@ class Config:
     walkfile:
         Path to the walkfile used to populate the agent database.
     """
+
     port: int = 9161
     read_community: str = "public"
     write_community: str = "private"

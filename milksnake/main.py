@@ -5,6 +5,7 @@ Command-line entry point for running the Milksnake SNMP simulator.
 
 Parses arguments, loads configuration and walkfile, then starts the agent.
 """
+
 import argparse
 
 from milksnake.agent import Agent

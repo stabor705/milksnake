@@ -13,6 +13,7 @@ Each non-empty line is expected to be in one of the following forms:
 Where the last form represents a present OID with a NULL value.
 Leading dots on OIDs are removed during parsing.
 """
+
 from dataclasses import dataclass
 from typing import List, IO
 
@@ -26,6 +27,7 @@ class Entry:
     oid:
         Object identifier as a string. Leading dot is removed during parsing.
     """
+
     oid: str
 
 
@@ -36,6 +38,7 @@ class VariableBindingEntry(Entry):
     ``type`` corresponds to a textual SNMP type (e.g., ``STRING``, ``INTEGER``),
     and ``value`` holds the raw textual value as seen in the walk output.
     """
+
     type: str
     value: str
 
@@ -43,6 +46,7 @@ class VariableBindingEntry(Entry):
 @dataclass
 class NullEntry(Entry):
     """An entry representing a present OID with a NULL value."""
+
     pass
 
 

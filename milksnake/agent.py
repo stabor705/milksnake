@@ -7,6 +7,7 @@ This agent listens on a UDP port and responds to GET requests based on an
 in-memory database populated from a walkfile. Communities and port are
 configured via the ``Config`` object.
 """
+
 from pysnmp.carrier.asyncio.dispatch import AsyncioDispatcher
 from pysnmp.carrier.asyncio.dgram import udp
 from pyasn1.codec.ber import encoder, decoder
@@ -33,6 +34,7 @@ class Agent:
     config:
         Runtime configuration (port and communities).
     """
+
     def __init__(self, entries: List[Entry], config: Config):
         self.database = self._build_database(entries)
         self.config = config
