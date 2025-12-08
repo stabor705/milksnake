@@ -1,3 +1,11 @@
+"""milksnake.main
+=================
+
+Command-line entry point for running the Milksnake SNMP simulator.
+
+Parses arguments, loads configuration and walkfile, then starts the agent.
+"""
+
 import argparse
 
 from milksnake.agent import Agent
@@ -6,6 +14,13 @@ from milksnake.walkfile import parse_walkfile
 
 
 def _read_walkfile(walkfile: str):
+    """Read and parse a walkfile from disk.
+
+    Parameters
+    ----------
+    walkfile:
+        Path to the walkfile containing OID/value lines.
+    """
     with open(walkfile, "r", encoding="utf-8") as f:
         entries = list(parse_walkfile(f))
     print(f"Loaded {len(entries)} entries from {walkfile}")
@@ -13,6 +28,7 @@ def _read_walkfile(walkfile: str):
 
 
 def _parse_args():
+    """Build and parse CLI arguments for the simulator."""
     parser = argparse.ArgumentParser(description="Milksnake SNMP Simulator")
     parser.add_argument(
         "--config",
@@ -51,6 +67,7 @@ def _parse_args():
 
 
 def _load_config(args) -> Config:
+    """Create a ``Config`` object from CLI arguments and/or file."""
     if args.config:
         config = Config.from_file(args.config)
         print(f"Loaded configuration from {args.config}")
