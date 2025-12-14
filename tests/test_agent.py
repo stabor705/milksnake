@@ -81,6 +81,7 @@ def test_find_entry_for_oid(test_entries, test_config):
     assert entry2.value == "42"
     assert entry3 is None
 
+
 def test_build_database_with_multiple_files_no_conflict():
     # Arrange
     config = Config.from_defaults()
