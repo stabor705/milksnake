@@ -18,6 +18,7 @@ from milksnake.walkfile import Entry, VariableBindingEntry
 
 Database = SortedDict[str, Entry]
 
+
 class Agent:
     """A minimal SNMP agent.
 
@@ -113,12 +114,14 @@ class Agent:
             variable_bindings.extend(new_variable_bindings)
             errors.extend(new_errors)
         elif request_pdu.isSameTypeWith(module.GetNextRequestPDU()):
-            new_variable_bindings, new_errors = self._handle_get_next(module, request_pdu)
+            new_variable_bindings, new_errors = self._handle_get_next(
+                module, request_pdu
+            )
             variable_bindings.extend(new_variable_bindings)
             errors.extend(new_errors)
         else:
             raise ValueError("Unsupported PDU type")
-        
+
         module.apiPDU.set_varbinds(response_pdu, variable_bindings)
         for error_func, idx in errors:
             error_func(response_pdu, idx)
