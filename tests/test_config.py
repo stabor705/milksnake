@@ -81,6 +81,7 @@ def test_config_from_empty_file():
     finally:
         Path(temp_path).unlink()
 
+
 def test_config_multiple_walkfiles():
     # Arrange
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:

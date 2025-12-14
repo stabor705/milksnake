@@ -29,6 +29,7 @@ class Config:
     walkfiles:
         List of paths to walkfiles used to populate the agent database.
     """
+
     DEFAULT_PORT: int = 9161
     DEFAULT_READ_COMMUNITY: str = "public"
     DEFAULT_WRITE_COMMUNITY: str = "private"
@@ -56,12 +57,12 @@ class Config:
         """
         with open(path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
-        
+
         walkfiles = data.get("walkfiles")
         if walkfiles is None:
             walkfile = data.get("walkfile")
             walkfiles = [walkfile] if walkfile else [cls.DEFAULT_WALKFILE]
-        
+
         return cls(
             port=data.get("port", cls.DEFAULT_PORT),
             read_community=data.get("read_community", cls.DEFAULT_READ_COMMUNITY),
