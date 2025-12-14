@@ -1,6 +1,5 @@
-"""milksnake.agent
+"""milksnake.agent.
 ===================
-
 SNMP agent implementation built on top of pysnmp's asyncio carrier.
 
 This agent listens on a UDP port and responds to GET requests based on an
@@ -8,17 +7,16 @@ in-memory database populated from a walkfile. Communities and port are
 configured via the ``Config`` object.
 """
 
-from pysnmp.carrier.asyncio.dispatch import AsyncioDispatcher
+from pyasn1.codec.ber import decoder, encoder
 from pysnmp.carrier.asyncio.dgram import udp
-from pyasn1.codec.ber import encoder, decoder
+from pysnmp.carrier.asyncio.dispatch import AsyncioDispatcher
 from pysnmp.proto import api
-
-from typing import List, Dict
+from sortedcontainers import SortedDict
 
 from milksnake.config import Config
 from milksnake.walkfile import Entry, VariableBindingEntry
 
-Database = Dict[str, Entry]
+Database = SortedDict[str, Entry]
 
 
 class Agent:
@@ -33,9 +31,11 @@ class Agent:
         Parsed walkfile entries used to seed the agent database.
     config:
         Runtime configuration (port and communities).
+
     """
 
-    def __init__(self, entries: List[Entry], config: Config):
+    def __init__(self, entries: list[Entry], config: Config) -> None:
+        """Initialize the agent with a database and configuration."""
         self.database = self._build_database(entries)
         self.config = config
 
@@ -46,7 +46,7 @@ class Agent:
             udp.UdpAsyncioTransport().open_server_mode(("127.0.0.1", config.port)),
         )
 
-    def run(self):
+    def run(self) -> None:
         """Run the dispatcher loop until interrupted.
 
         This method blocks the current thread. Use a background thread if you
@@ -63,7 +63,7 @@ class Agent:
         finally:
             self._dispatcher.close_dispatcher()
 
-    def stop(self):
+    def stop(self) -> None:
         """Request a graceful shutdown of the dispatcher loop."""
         self._dispatcher.job_finished(1)
         self._dispatcher.close_dispatcher()
@@ -98,21 +98,70 @@ class Agent:
             return message
 
         response = module.apiMessage.get_response(request)
-        responsePdu = module.apiMessage.get_pdu(response)
-        requestPdu = module.apiMessage.get_pdu(request)
+        response_pdu = module.apiMessage.get_pdu(response)
+        request_pdu = module.apiMessage.get_pdu(request)
 
-        oid, _ = module.apiPDU.get_varbinds(requestPdu)[0]
-        entry = self._find_entry_for_oid(str(oid))
-
-        if entry is None:
-            print(f"OID not found: {oid}")
-            module.apiPDU.set_error_status(responsePdu, 2)
-        else:
-            asn_value = self._create_asn_value(entry.type, entry.value, module)
-            module.apiPDU.set_varbinds(responsePdu, [(oid, asn_value)])
+        self._fill_response(request_pdu, response_pdu, module)
 
         dispatcher.send_message(encoder.encode(response), domain, address)
         return message
+
+    def _fill_response(self, request_pdu, response_pdu, module):
+        variable_bindings = []
+        errors = []
+        if request_pdu.isSameTypeWith(module.GetRequestPDU()):
+            new_variable_bindings, new_errors = self._handle_get(module, request_pdu)
+            variable_bindings.extend(new_variable_bindings)
+            errors.extend(new_errors)
+        elif request_pdu.isSameTypeWith(module.GetNextRequestPDU()):
+            new_variable_bindings, new_errors = self._handle_get_next(
+                module, request_pdu
+            )
+            variable_bindings.extend(new_variable_bindings)
+            errors.extend(new_errors)
+        else:
+            raise ValueError("Unsupported PDU type")
+
+        module.apiPDU.set_varbinds(response_pdu, variable_bindings)
+        for error_func, idx in errors:
+            error_func(response_pdu, idx)
+        return errors
+
+    def _handle_get(self, module, request_pdu):
+        errors = []
+        variable_bindings = []
+        for idx, (oid, value) in enumerate(module.apiPDU.get_varbinds(request_pdu)):
+            db_value = self._find_entry_for_oid(str(oid))
+            if db_value is None:
+                errors.append((module.apiPDU.set_no_such_name_error, idx))
+                variable_bindings.append((oid, value))
+                break
+            asn_value = self._create_asn_value(
+                db_value.type,
+                db_value.value,
+                module,
+            )
+            variable_bindings.append((oid, asn_value))
+        return variable_bindings, errors
+
+    def _handle_get_next(self, module, request_pdu):
+        variable_bindings = []
+        errors = []
+        for idx, (oid, _) in enumerate(module.apiPDU.get_varbinds(request_pdu)):
+            i = self.database.bisect_right(str(oid))
+            if i < len(self.database):
+                next_oid, next_entry = self.database.peekitem(i)
+                asn_value = self._create_asn_value(
+                    next_entry.type,
+                    next_entry.value,
+                    module,
+                )
+                variable_bindings.append((module.ObjectIdentifier(next_oid), asn_value))
+            else:
+                print(f"End of MIB reached: {oid}")
+                errors.append((module.apiPDU.set_end_of_mib_view_error, idx))
+                break
+        return variable_bindings, errors
 
     def _verify_community(self, community: str, version: int) -> bool:
         """Validate the community string for this request.
@@ -144,14 +193,9 @@ class Agent:
             case "STRING":
                 return module.OctetString(value)
             case _:
-                raise ValueError(f"Unsupported type: {type}")
+                return module.OctetString(f"Unsupported type: {type}")
 
     @staticmethod
-    def _build_database(entries: List[Entry]) -> Database:
+    def _build_database(entries: list[Entry]) -> Database:
         """Build the internal OID -> Entry mapping from parsed entries."""
-        database = {}
-        for entry in entries:
-            if entry.oid in database:
-                raise ValueError(f"Duplicate OID found: {entry.oid}")
-            database[entry.oid] = entry
-        return database
+        return SortedDict({entry.oid: entry for entry in entries})

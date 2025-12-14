@@ -15,7 +15,8 @@ Leading dots on OIDs are removed during parsing.
 """
 
 from dataclasses import dataclass
-from typing import List, IO
+from pathlib import Path
+from typing import IO
 
 
 @dataclass
@@ -47,10 +48,8 @@ class VariableBindingEntry(Entry):
 class NullEntry(Entry):
     """An entry representing a present OID with a NULL value."""
 
-    pass
 
-
-def parse_walkfile(reader: IO) -> List[Entry]:
+def parse_walkfile(reader: IO) -> list[Entry]:
     """Parse all lines from a text reader into a list of ``Entry`` objects.
 
     Notes
@@ -58,13 +57,10 @@ def parse_walkfile(reader: IO) -> List[Entry]:
     This function preserves trailing spaces in values and assumes each line
     ends with a single trailing newline character.
     """
-    entries = []
-    for line in reader:
-        entries.append(_parse_line(line[:-1]))
-    return entries
+    return [_parse_line(line[:-1]) for line in reader]
 
 
-def _parse_line(line: str):
+def _parse_line(line: str) -> Entry:
     """Parse a single walkfile line into an ``Entry`` instance."""
     oid, var = line.split(" = ", 1)
     oid = _remove_leading_dot(oid)
@@ -82,7 +78,7 @@ def _remove_leading_dot(oid: str) -> str:
 
 
 if __name__ == "__main__":
-    with open("walkfile.txt", "r", encoding="utf-8") as f:
+    with Path.open("walkfile.txt", "r", encoding="utf-8") as f:
         entries = parse_walkfile(f)
         for entry in entries:
             print(entry)

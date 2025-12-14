@@ -7,14 +7,13 @@ Parses arguments, loads configuration and walkfile, then starts the agent.
 """
 
 import argparse
-from typing import List
 
 from milksnake.agent import Agent
 from milksnake.config import Config
-from milksnake.walkfile import parse_walkfile, Entry
+from milksnake.walkfile import Entry, parse_walkfile
 
 
-def _read_walkfiles(walkfiles: List[str]) -> List[Entry]:
+def _read_walkfiles(walkfiles: list[str]) -> list[Entry]:
     """Read and parse multiple walkfiles from disk.
 
     Parameters
@@ -31,7 +30,7 @@ def _read_walkfiles(walkfiles: List[str]) -> List[Entry]:
     return all_entries
 
 
-def _parse_args():
+def _parse_args() -> argparse.Namespace:
     """Build and parse CLI arguments for the simulator."""
     parser = argparse.ArgumentParser(description="Milksnake SNMP Simulator")
     parser.add_argument(
@@ -71,7 +70,7 @@ def _parse_args():
     return parser.parse_args()
 
 
-def _load_config(args) -> Config:
+def _load_config(args: argparse.Namespace) -> Config:
     """Create a ``Config`` object from CLI arguments and/or file."""
     if args.config:
         config = Config.from_file(args.config)
@@ -80,6 +79,7 @@ def _load_config(args) -> Config:
         config = Config.from_defaults()
         print("Using default configuration")
 
+    # TODO(Przemyslaw Maresz): consider using inline if statements
     if args.port is not None:
         config.port = args.port
     if args.read_community is not None:
@@ -98,6 +98,7 @@ if __name__ == "__main__":
     args = _parse_args()
     config = _load_config(args)
 
+    # TODO(Przemyslaw Maresz): extract to a function
     print("Configuration:")
     print(f"  Port: {config.port}")
     print(f"  Read community: {config.read_community}")
