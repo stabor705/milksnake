@@ -58,10 +58,7 @@ def parse_walkfile(reader: IO) -> List[Entry]:
     This function preserves trailing spaces in values and assumes each line
     ends with a single trailing newline character.
     """
-    entries = []
-    for line in reader:
-        entries.append(_parse_line(line[:-1]))
-    return entries
+    return [_parse_line(line[:-1]) for line in reader]
 
 
 def _parse_line(line: str):

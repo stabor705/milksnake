@@ -23,13 +23,17 @@ classifiers = [
   "Operating System :: OS Independent",
 ]
 
+scripts = { "milksnake" = "milksnake.main:main" }
+
 # If you prefer to keep runtime dependencies in requirements.txt, you can omit this.
 # Listing them here makes builds self-contained per PEP 621.
 dependencies = [
   "pyasn1==0.6.1",
   "pysnmp==7.1.22",
   "pyyaml>=6.0.3",
+  "sortedcontainers>=2.4.0",
 ]
+
 
 [tool.setuptools]
 # Use package discovery for the src layout or plain package folder.
@@ -49,3 +53,11 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q --cov=milksnake --cov-report=term-missing --cov-report=xml"
+
+[tool.ruff.lint]
+select = ["ALL"]
+extend-ignore = [
+  "S101", # allow asserts in tests
+  "W291", # useful in multi-line strings,
+  "T201", # allow print statements
+]

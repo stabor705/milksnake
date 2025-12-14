@@ -7,14 +7,13 @@ Parses arguments, loads configuration and walkfile, then starts the agent.
 """
 
 import argparse
-from typing import List
 
 from milksnake.agent import Agent
 from milksnake.config import Config
-from milksnake.walkfile import parse_walkfile, Entry
+from milksnake.walkfile import Entry, parse_walkfile
 
 
-def _read_walkfiles(walkfiles: List[str]) -> List[Entry]:
+def _read_walkfiles(walkfiles: list[str]) -> list[Entry]:
     """Read and parse multiple walkfiles from disk.
 
     Parameters
@@ -80,6 +79,7 @@ def _load_config(args) -> Config:
         config = Config.from_defaults()
         print("Using default configuration")
 
+    # TODO: consider using inline if statements
     if args.port is not None:
         config.port = args.port
     if args.read_community is not None:
@@ -98,6 +98,7 @@ if __name__ == "__main__":
     args = _parse_args()
     config = _load_config(args)
 
+    # TODO: extract to a function
     print("Configuration:")
     print(f"  Port: {config.port}")
     print(f"  Read community: {config.read_community}")

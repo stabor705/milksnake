@@ -1,0 +1,1 @@
+"""Milksnake tests package."""
