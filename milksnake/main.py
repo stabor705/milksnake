@@ -44,29 +44,29 @@ def _parse_args():
         "--port",
         "-p",
         type=int,
-        help="UDP port to listen on (default: 9161)",
+        help=f"UDP port to listen on (default: {Config.DEFAULT_PORT})",
     )
     parser.add_argument(
         "--read-community",
         type=str,
-        help="Read community string (default: public)",
+        help=f"Read community string (default: {Config.DEFAULT_READ_COMMUNITY})",
     )
     parser.add_argument(
         "--write-community",
         type=str,
-        help="Write community string (default: private)",
+        help=f"Write community string (default: {Config.DEFAULT_WRITE_COMMUNITY})",
     )
     parser.add_argument(
         "--trap-community",
         type=str,
-        help="Trap community string (default: public)",
+        help=f"Trap community string (default: {Config.DEFAULT_TRAP_COMMUNITY})",
     )
     parser.add_argument(
         "--walkfile",
         "-w",
         type=str,
         action="append",
-        help="Path to walkfile (can be specified multiple times)",
+        help=f"Path to walkfile - can be specified multiple times (default: {Config.DEFAULT_WALKFILE})",
     )
     return parser.parse_args()
 
