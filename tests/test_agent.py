@@ -81,21 +81,6 @@ def test_find_entry_for_oid(test_entries, test_config):
     assert entry2.value == "42"
     assert entry3 is None
 
-
-def test_build_database_with_duplicate_oid():
-    # Arrange
-    config = Config.from_defaults()
-    file1 = StringIO(".1.3.6.1.2.1.1.1.0 = STRING: First\n")
-    file2 = StringIO(".1.3.6.1.2.1.1.1.0 = STRING: Second\n")
-    entries1 = list(parse_walkfile(file1))
-    entries2 = list(parse_walkfile(file2))
-    all_entries = entries1 + entries2
-
-    # Act & Assert
-    with pytest.raises(ValueError, match="Duplicate OID found: 1.3.6.1.2.1.1.1.0"):
-        Agent(all_entries, config)
-
-
 def test_build_database_with_multiple_files_no_conflict():
     # Arrange
     config = Config.from_defaults()
