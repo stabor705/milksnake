@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+
 import yaml
 
 
@@ -33,13 +34,15 @@ class Config:
     trap_community: str = DEFAULT_TRAP_COMMUNITY
     walkfiles: list[str] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
+        """Post-initialization to set default walkfiles if none provided."""
         if self.walkfiles is None:
             self.walkfiles = [self.DEFAULT_WALKFILE]
 
     @classmethod
     def from_file(cls, path: str | Path) -> "Config":
-        with open(path, "r", encoding="utf-8") as f:
+        """Create a ``Config`` object from a YAML configuration file."""
+        with Path.open(path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
 
         walkfiles = data.get("walkfiles")
@@ -57,4 +60,5 @@ class Config:
 
     @classmethod
     def from_defaults(cls) -> "Config":
+        """Create a ``Config`` object with all default values."""
         return cls()
