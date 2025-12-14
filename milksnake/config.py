@@ -8,6 +8,7 @@ Settings can be loaded from a small YAML file or constructed from defaults.
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import List
 import yaml
 
 
@@ -25,15 +26,19 @@ class Config:
         Community string for write requests (not yet used).
     trap_community:
         Community string for traps (not yet used).
-    walkfile:
-        Path to the walkfile used to populate the agent database.
+    walkfiles:
+        List of paths to walkfiles used to populate the agent database.
     """
 
     port: int = 9161
     read_community: str = "public"
     write_community: str = "private"
     trap_community: str = "public"
-    walkfile: str = "walkfile.txt"
+    walkfiles: List[str] = None
+
+    def __post_init__(self):
+        if self.walkfiles is None:
+            self.walkfiles = ["walkfile.txt"]
 
     @classmethod
     def from_file(cls, path: str | Path) -> "Config":
@@ -46,12 +51,18 @@ class Config:
         """
         with open(path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
+        
+        walkfiles = data.get("walkfiles")
+        if walkfiles is None:
+            walkfile = data.get("walkfile")
+            walkfiles = [walkfile] if walkfile else ["walkfile.txt"]
+        
         return cls(
             port=data.get("port", 9161),
             read_community=data.get("read_community", "public"),
             write_community=data.get("write_community", "private"),
             trap_community=data.get("trap_community", "public"),
-            walkfile=data.get("walkfile", "walkfile.txt"),
+            walkfiles=walkfiles,
         )
 
     @classmethod

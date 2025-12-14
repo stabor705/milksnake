@@ -6,17 +6,15 @@ import yaml
 from milksnake.config import Config
 
 
-@pytest.fixture
 def test_default_config():
     config = Config.from_defaults()
     assert config.port == 9161
     assert config.read_community == "public"
     assert config.write_community == "private"
     assert config.trap_community == "public"
-    assert config.walkfile == "walkfile.txt"
+    assert config.walkfiles == ["walkfile.txt"]
 
 
-@pytest.fixture
 def test_config_from_file():
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         yaml.dump(
@@ -25,7 +23,7 @@ def test_config_from_file():
                 "read_community": "test_read",
                 "write_community": "test_write",
                 "trap_community": "test_trap",
-                "walkfile": "custom.txt",
+                "walkfiles": ["custom1.txt", "custom2.txt"],
             },
             f,
         )
@@ -37,12 +35,11 @@ def test_config_from_file():
         assert config.read_community == "test_read"
         assert config.write_community == "test_write"
         assert config.trap_community == "test_trap"
-        assert config.walkfile == "custom.txt"
+        assert config.walkfiles == ["custom1.txt", "custom2.txt"]
     finally:
         Path(temp_path).unlink()
 
 
-@pytest.fixture
 def test_config_from_partial_file():
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         yaml.dump({"port": 2000}, f)
@@ -52,11 +49,11 @@ def test_config_from_partial_file():
         config = Config.from_file(temp_path)
         assert config.port == 2000
         assert config.read_community == "public"
+        assert config.walkfiles == ["walkfile.txt"]
     finally:
         Path(temp_path).unlink()
 
 
-@pytest.fixture
 def test_config_from_empty_file():
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         temp_path = f.name
@@ -65,5 +62,17 @@ def test_config_from_empty_file():
         config = Config.from_file(temp_path)
         assert config.port == 9161
         assert config.read_community == "public"
+        assert config.walkfiles == ["walkfile.txt"]
+    finally:
+        Path(temp_path).unlink()
+
+def test_config_multiple_walkfiles():
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+        yaml.dump({"walkfiles": ["file1.txt", "file2.txt", "file3.txt"]}, f)
+        temp_path = f.name
+
+    try:
+        config = Config.from_file(temp_path)
+        assert config.walkfiles == ["file1.txt", "file2.txt", "file3.txt"]
     finally:
         Path(temp_path).unlink()

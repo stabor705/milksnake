@@ -149,4 +149,9 @@ class Agent:
     @staticmethod
     def _build_database(entries: List[Entry]) -> Database:
         """Build the internal OID -> Entry mapping from parsed entries."""
-        return {entry.oid: entry for entry in entries}
+        database = {}
+        for entry in entries:
+            if entry.oid in database:
+                raise ValueError(f"Duplicate OID found: {entry.oid}")
+            database[entry.oid] = entry
+        return database

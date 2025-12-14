@@ -7,24 +7,28 @@ Parses arguments, loads configuration and walkfile, then starts the agent.
 """
 
 import argparse
+from typing import List
 
 from milksnake.agent import Agent
 from milksnake.config import Config
-from milksnake.walkfile import parse_walkfile
+from milksnake.walkfile import parse_walkfile, Entry
 
 
-def _read_walkfile(walkfile: str):
-    """Read and parse a walkfile from disk.
+def _read_walkfiles(walkfiles: List[str]) -> List[Entry]:
+    """Read and parse multiple walkfiles from disk.
 
     Parameters
     ----------
-    walkfile:
-        Path to the walkfile containing OID/value lines.
+    walkfiles:
+        List of paths to walkfiles containing OID/value lines.
     """
-    with open(walkfile, "r", encoding="utf-8") as f:
-        entries = list(parse_walkfile(f))
-    print(f"Loaded {len(entries)} entries from {walkfile}")
-    return entries
+    all_entries = []
+    for walkfile in walkfiles:
+        with open(walkfile, "r", encoding="utf-8") as f:
+            entries = list(parse_walkfile(f))
+        print(f"Loaded {len(entries)} entries from {walkfile}")
+        all_entries.extend(entries)
+    return all_entries
 
 
 def _parse_args():
@@ -61,7 +65,8 @@ def _parse_args():
         "--walkfile",
         "-w",
         type=str,
-        help="Path to walkfile (default: walkfile.txt)",
+        action="append",
+        help="Path to walkfile (can be specified multiple times)",
     )
     return parser.parse_args()
 
@@ -84,7 +89,7 @@ def _load_config(args) -> Config:
     if args.trap_community is not None:
         config.trap_community = args.trap_community
     if args.walkfile is not None:
-        config.walkfile = args.walkfile
+        config.walkfiles = args.walkfile
 
     return config
 
@@ -98,8 +103,8 @@ if __name__ == "__main__":
     print(f"  Read community: {config.read_community}")
     print(f"  Write community: {config.write_community}")
     print(f"  Trap community: {config.trap_community}")
-    print(f"  Walkfile: {config.walkfile}")
+    print(f"  Walkfiles: {', '.join(config.walkfiles)}")
 
-    entries = _read_walkfile(config.walkfile)
+    entries = _read_walkfiles(config.walkfiles)
     agent = Agent(entries, config)
     agent.run()
