@@ -67,7 +67,7 @@ def _parse_args() -> argparse.Namespace:
         type=str,
         action="append",
         help=f"Path to walkfile - can be specified multiple times \
-        (default: {Config.DEFAULT_WALKFILE})",
+        (default: {', '.join(Config.DEFAULT_WALKFILES)})",
     )
     return parser.parse_args()
 
@@ -81,32 +81,42 @@ def _load_config(args: argparse.Namespace) -> Config:
         config = Config.from_defaults()
         print("Using default configuration")
 
-    # TODO(Przemyslaw Maresz): consider using inline if statements
-    if args.port is not None:
-        config.port = args.port
-    if args.read_community is not None:
-        config.read_community = args.read_community
-    if args.write_community is not None:
-        config.write_community = args.write_community
-    if args.trap_community is not None:
-        config.trap_community = args.trap_community
-    if args.walkfile is not None:
-        config.walkfiles = args.walkfile
+    config.port = args.port if args.port is not None else config.port
+    config.read_community = (
+        args.read_community
+        if args.read_community is not None
+        else config.read_community
+    )
+    config.write_community = (
+        args.write_community
+        if args.write_community is not None
+        else config.write_community
+    )
+    config.trap_community = (
+        args.trap_community
+        if args.trap_community is not None
+        else config.trap_community
+    )
+    config.walkfiles = args.walkfile if args.walkfile is not None else config.walkfiles
 
     return config
 
 
-if __name__ == "__main__":
-    args = _parse_args()
-    config = _load_config(args)
-
-    # TODO(Przemyslaw Maresz): extract to a function
+def _print_config(config: Config) -> None:
+    """Print configuration details."""
     print("Configuration:")
     print(f"  Port: {config.port}")
     print(f"  Read community: {config.read_community}")
     print(f"  Write community: {config.write_community}")
     print(f"  Trap community: {config.trap_community}")
     print(f"  Walkfiles: {', '.join(config.walkfiles)}")
+
+
+if __name__ == "__main__":
+    args = _parse_args()
+    config = _load_config(args)
+
+    _print_config(config)
 
     entries = _read_walkfiles(config.walkfiles)
     agent = Agent(entries, config)

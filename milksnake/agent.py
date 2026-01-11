@@ -94,7 +94,7 @@ class Agent:
 
         Returns
         -------
-        Any
+        bytes
             The remaining undecoded part of the message as required by pysnmp.
 
         """

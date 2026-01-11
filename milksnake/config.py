@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
+from typing import ClassVar
 
 import yaml
 
@@ -26,19 +27,18 @@ class Config:
     DEFAULT_READ_COMMUNITY: str = "public"
     DEFAULT_WRITE_COMMUNITY: str = "private"
     DEFAULT_TRAP_COMMUNITY: str = "public"
-    DEFAULT_WALKFILE: str = "walkfile.txt"
+    DEFAULT_WALKFILES: ClassVar[list[str]] = ["walkfile.txt"]
 
     port: int = DEFAULT_PORT
     read_community: str = DEFAULT_READ_COMMUNITY
     write_community: str = DEFAULT_WRITE_COMMUNITY
     trap_community: str = DEFAULT_TRAP_COMMUNITY
-    # TODO: only use walkfiles, remove walkfile configuration
     walkfiles: list[str] | None = None
 
     def __post_init__(self) -> None:
         """Post-initialization to set default walkfiles if none provided."""
         if self.walkfiles is None:
-            self.walkfiles = [self.DEFAULT_WALKFILE]
+            self.walkfiles = self.DEFAULT_WALKFILES
 
     @classmethod
     def from_file(cls, path: str | Path) -> "Config":
@@ -46,10 +46,7 @@ class Config:
         with Path.open(path, "r", encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
 
-        walkfiles = data.get("walkfiles")
-        if walkfiles is None:
-            walkfile = data.get("walkfile")
-            walkfiles = [walkfile] if walkfile else [cls.DEFAULT_WALKFILE]
+        walkfiles = data.get("walkfiles", cls.DEFAULT_WALKFILES)
 
         return cls(
             port=data.get("port", cls.DEFAULT_PORT),
