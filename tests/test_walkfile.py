@@ -1,3 +1,5 @@
+"""Unit tests for milksnake.walkfile module."""
+
 from io import StringIO
 
 from milksnake.walkfile import (
