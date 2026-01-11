@@ -28,11 +28,12 @@ class Config:
     DEFAULT_TRAP_COMMUNITY: str = "public"
     DEFAULT_WALKFILE: str = "walkfile.txt"
 
-    port: int = 9161
+    port: int = DEFAULT_PORT
     read_community: str = DEFAULT_READ_COMMUNITY
     write_community: str = DEFAULT_WRITE_COMMUNITY
     trap_community: str = DEFAULT_TRAP_COMMUNITY
-    walkfiles: list[str] = None
+    # TODO: only use walkfiles, remove walkfile configuration
+    walkfiles: list[str] | None = None
 
     def __post_init__(self) -> None:
         """Post-initialization to set default walkfiles if none provided."""

@@ -1,5 +1,4 @@
-"""milksnake.walkfile
-=====================
+"""milksnake.walkfile.
 
 Utilities for parsing simple SNMP walk files.
 
@@ -15,6 +14,7 @@ Leading dots on OIDs are removed during parsing.
 """
 
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 from typing import IO
 
@@ -27,9 +27,27 @@ class Entry:
     ----------
     oid:
         Object identifier as a string. Leading dot is removed during parsing.
+
     """
 
     oid: str
+
+
+class Asn1Type(StrEnum):
+    """Enumeration of supported ASN.1 types in walkfiles."""
+
+    String = "STRING"
+    Integer = "INTEGER"
+    ObjectIdentifier = "OID"
+    IpAddress = "IpAddress"
+    Counter32 = "Counter32"
+    Counter64 = "Counter64"
+    Gauge32 = "Gauge32"
+    Timeticks = "Timeticks"
+    Opaque = "Opaque"
+    Bits = "BITS"
+    Unsigned32 = "Unsigned32"
+    HexString = "Hex-STRING"
 
 
 @dataclass
@@ -40,7 +58,7 @@ class VariableBindingEntry(Entry):
     and ``value`` holds the raw textual value as seen in the walk output.
     """
 
-    type: str
+    type: Asn1Type
     value: str
 
 
@@ -56,6 +74,7 @@ def parse_walkfile(reader: IO) -> list[Entry]:
     -----
     This function preserves trailing spaces in values and assumes each line
     ends with a single trailing newline character.
+
     """
     return [_parse_line(line[:-1]) for line in reader]
 
@@ -67,7 +86,7 @@ def _parse_line(line: str) -> Entry:
     if var.find(":") == -1:
         return NullEntry(oid=oid)
     type_, value = var.split(": ", 1)
-    return VariableBindingEntry(oid=oid, type=type_, value=value)
+    return VariableBindingEntry(oid=oid, type=Asn1Type(type_), value=value)
 
 
 def _remove_leading_dot(oid: str) -> str:
@@ -78,7 +97,7 @@ def _remove_leading_dot(oid: str) -> str:
 
 
 if __name__ == "__main__":
-    with Path.open("walkfile.txt", "r", encoding="utf-8") as f:
+    with Path("walkfile.txt").open("r", encoding="utf-8") as f:
         entries = parse_walkfile(f)
         for entry in entries:
             print(entry)
