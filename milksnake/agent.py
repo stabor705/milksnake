@@ -1,11 +1,15 @@
 """milksnake.agent.
-===================
+
 SNMP agent implementation built on top of pysnmp's asyncio carrier.
 
 This agent listens on a UDP port and responds to GET requests based on an
 in-memory database populated from a walkfile. Communities and port are
 configured via the ``Config`` object.
 """
+
+import types
+from collections.abc import Callable
+from typing import Any, ClassVar
 
 from pyasn1.codec.ber import decoder, encoder
 from pysnmp.carrier.asyncio.dgram import udp
@@ -14,7 +18,7 @@ from pysnmp.proto import api
 from sortedcontainers import SortedDict
 
 from milksnake.config import Config
-from milksnake.walkfile import Entry, VariableBindingEntry
+from milksnake.walkfile import Asn1Type, Entry, VariableBindingEntry
 
 Database = SortedDict[str, Entry]
 
@@ -68,7 +72,13 @@ class Agent:
         self._dispatcher.job_finished(1)
         self._dispatcher.close_dispatcher()
 
-    def _dispatcher_receive_callback(self, dispatcher, domain, address, message):
+    def _dispatcher_receive_callback(
+        self,
+        dispatcher: AsyncioDispatcher,
+        domain: tuple[str, ...],
+        address: tuple[str, int],
+        message: bytes,
+    ) -> bytes:
         """Handle an incoming SNMP message and send a response.
 
         Parameters
@@ -86,6 +96,7 @@ class Agent:
         -------
         Any
             The remaining undecoded part of the message as required by pysnmp.
+
         """
         version = api.decodeMessageVersion(message)
         module = api.PROTOCOL_MODULES[version]
@@ -106,52 +117,67 @@ class Agent:
         dispatcher.send_message(encoder.encode(response), domain, address)
         return message
 
-    def _fill_response(self, request_pdu, response_pdu, module):
-        variable_bindings = []
-        errors = []
+    def _fill_response(
+        self,
+        request_pdu: Any,  # noqa: ANN401, could not find type for pysnmp PDU
+        response_pdu: Any,  # noqa: ANN401
+        module: types.ModuleType,
+    ) -> list[tuple[Callable[[Any, int], None], int]]:
+        variable_bindings: list[tuple[Any, Any]] = []
+        errors: list[tuple[Callable[[Any, int], None], int]] = []
         if request_pdu.isSameTypeWith(module.GetRequestPDU()):
             new_variable_bindings, new_errors = self._handle_get(module, request_pdu)
             variable_bindings.extend(new_variable_bindings)
             errors.extend(new_errors)
         elif request_pdu.isSameTypeWith(module.GetNextRequestPDU()):
             new_variable_bindings, new_errors = self._handle_get_next(
-                module, request_pdu
+                module,
+                request_pdu,
             )
             variable_bindings.extend(new_variable_bindings)
             errors.extend(new_errors)
         else:
-            raise ValueError("Unsupported PDU type")
+            msg = "Unsupported PDU type in request"
+            raise ValueError(msg)
 
         module.apiPDU.set_varbinds(response_pdu, variable_bindings)
         for error_func, idx in errors:
             error_func(response_pdu, idx)
         return errors
 
-    def _handle_get(self, module, request_pdu):
-        errors = []
-        variable_bindings = []
+    def _handle_get(
+        self,
+        module: types.ModuleType,
+        request_pdu: Any,  # noqa: ANN401, could not find type for pysnmp PDU
+    ) -> tuple[list[tuple[Any, Any]], list[tuple[Callable[[Any, int], None], int]]]:
+        errors: list[tuple[Callable[[Any, int], None], int]] = []
+        variable_bindings: list[tuple[Any, Any]] = []
         for idx, (oid, value) in enumerate(module.apiPDU.get_varbinds(request_pdu)):
-            db_value = self._find_entry_for_oid(str(oid))
-            if db_value is None:
+            entry = self._find_entry_for_oid(str(oid))
+            if entry is None:
                 errors.append((module.apiPDU.set_no_such_name_error, idx))
                 variable_bindings.append((oid, value))
                 break
-            asn_value = self._create_asn_value(
-                db_value.type,
-                db_value.value,
+            asn_value = Asn1Converter.create_asn_value(
+                entry.type,
+                entry.value,
                 module,
             )
             variable_bindings.append((oid, asn_value))
         return variable_bindings, errors
 
-    def _handle_get_next(self, module, request_pdu):
-        variable_bindings = []
-        errors = []
+    def _handle_get_next(
+        self,
+        module: types.ModuleType,
+        request_pdu: Any,  # noqa: ANN401, could not find type for pysnmp PDU
+    ) -> tuple[list[tuple[Any, Any]], list[tuple[Callable[[Any, int], None], int]]]:
+        variable_bindings: list[tuple[Any, Any]] = []
+        errors: list[tuple[Callable[[Any, int], None], int]] = []
         for idx, (oid, _) in enumerate(module.apiPDU.get_varbinds(request_pdu)):
             i = self.database.bisect_right(str(oid))
             if i < len(self.database):
                 next_oid, next_entry = self.database.peekitem(i)
-                asn_value = self._create_asn_value(
+                asn_value = Asn1Converter.create_asn_value(
                     next_entry.type,
                     next_entry.value,
                     module,
@@ -163,7 +189,7 @@ class Agent:
                 break
         return variable_bindings, errors
 
-    def _verify_community(self, community: str, version: int) -> bool:
+    def _verify_community(self, community: str) -> bool:
         """Validate the community string for this request.
 
         For now this checks read community only and ignores SNMP version.
@@ -182,20 +208,57 @@ class Agent:
         return entry
 
     @staticmethod
-    def _create_asn_value(type: str, value: str, module):
-        """Construct a pysnmp ASN.1 value from a textual type and value.
-
-        Supported types: ``INTEGER``, ``STRING``.
-        """
-        match type:
-            case "INTEGER":
-                return module.Integer(int(value))
-            case "STRING":
-                return module.OctetString(value)
-            case _:
-                return module.OctetString(f"Unsupported type: {type}")
-
-    @staticmethod
     def _build_database(entries: list[Entry]) -> Database:
         """Build the internal OID -> Entry mapping from parsed entries."""
         return SortedDict({entry.oid: entry for entry in entries})
+
+
+class Asn1Converter:
+    """Utility class for converting between textual ASN.1 types and pysnmp types."""
+
+    _ASN_CONVERTERS: ClassVar[dict[Asn1Type, Callable[[str], Any]]] = {
+        Asn1Type.Integer: int,
+        Asn1Type.String: str,
+        Asn1Type.ObjectIdentifier: str,
+        Asn1Type.IpAddress: str,
+        Asn1Type.Counter32: int,
+        Asn1Type.Counter64: int,
+        Asn1Type.Gauge32: int,
+        Asn1Type.Timeticks: int,
+        Asn1Type.Opaque: lambda v: v.encode("utf-8"),
+        Asn1Type.Bits: str,
+        Asn1Type.Unsigned32: int,
+        Asn1Type.HexString: bytes.fromhex,
+    }
+
+    _ASN_TYPE_MAP: ClassVar[dict[Asn1Type, str]] = {
+        Asn1Type.Integer: "Integer",
+        Asn1Type.String: "OctetString",
+        Asn1Type.ObjectIdentifier: "ObjectIdentifier",
+        Asn1Type.IpAddress: "IpAddress",
+        Asn1Type.Counter32: "Counter32",
+        Asn1Type.Counter64: "Counter64",
+        Asn1Type.Gauge32: "Gauge32",
+        Asn1Type.Timeticks: "TimeTicks",
+        Asn1Type.Opaque: "Opaque",
+        Asn1Type.Bits: "Bits",
+        Asn1Type.Unsigned32: "Unsigned32",
+        Asn1Type.HexString: "OctetString",
+    }
+
+    # ...existing code...
+
+    @staticmethod
+    def create_asn_value(
+        asn_type: Asn1Type,
+        value: str,
+        module: types.ModuleType,
+    ) -> Any:  # noqa: ANN401
+        """Construct a pysnmp ASN.1 value from a textual type and value."""
+        if asn_type not in Asn1Converter._ASN_TYPE_MAP:
+            return module.OctetString(f"Unsupported type: {asn_type}")
+
+        converter = Asn1Converter._ASN_CONVERTERS[asn_type]
+        type_name = Asn1Converter._ASN_TYPE_MAP[asn_type]
+        asn_class = getattr(module, type_name)
+        return asn_class(converter(value))

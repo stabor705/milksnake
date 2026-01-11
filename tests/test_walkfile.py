@@ -1,3 +1,5 @@
+"""Unit tests for milksnake.walkfile module."""
+
 from io import StringIO
 
 from milksnake.walkfile import (
@@ -29,7 +31,6 @@ def _test_parse_null_line() -> None:
 
 
 def _test_parse_empty_value() -> None:
-
     line = ".1.3.6.1.2.1.2.2.1.4.4 = STRING: "
 
     entry = _parse_line(line)

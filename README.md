@@ -42,3 +42,8 @@ Then run with:
 ```bash
 uv run python -m milksnake.main --config config.yaml
 ```
+
+# TODO
+- Add makefile/justfile
+- Make sure the names are good quality
+- Add pre-commit hook for format checking?
