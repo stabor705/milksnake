@@ -81,8 +81,8 @@ def test_verify_community(
     agent = Agent(test_entries, test_config)
 
     # Act & Assert
-    assert agent._verify_community("test_public", 0) is True  # noqa: SLF001
-    assert agent._verify_community("wrong", 0) is False  # noqa: SLF001
+    assert agent._verify_community("test_public") is True  # noqa: SLF001
+    assert agent._verify_community("wrong") is False  # noqa: SLF001
 
 
 def test_find_entry_for_oid(
