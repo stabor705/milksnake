@@ -67,7 +67,7 @@ def _parse_args() -> argparse.Namespace:
         type=str,
         action="append",
         help=f"Path to walkfile - can be specified multiple times \
-        (default: {Config.DEFAULT_WALKFILE})",
+        (default: {', '.join(Config.DEFAULT_WALKFILES)})",
     )
     return parser.parse_args()
 
