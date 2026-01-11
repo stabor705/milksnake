@@ -29,7 +29,6 @@ def _test_parse_null_line() -> None:
 
 
 def _test_parse_empty_value() -> None:
-
     line = ".1.3.6.1.2.1.2.2.1.4.4 = STRING: "
 
     entry = _parse_line(line)
@@ -44,7 +43,7 @@ def _test_parse_walkfile() -> None:
     file_mock = StringIO(
         """.1.3.6.1.2.1.2.2.1.4.4 = INTEGER: 1500
 .1.3.6.1.2.1.2.2.1.4.5 = \"\"
-.1.3.6.1.2.1.2.2.1.4.6 = STRING: 
+.1.3.6.1.2.1.2.2.1.4.6 = STRING:
 """,
     )
 

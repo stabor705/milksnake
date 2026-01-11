@@ -1,4 +1,5 @@
-"""Milksnake package
+"""Milksnake package.
+
 ====================
 
 SNMP simulator utilities and an agent implementation backed by pysnmp.

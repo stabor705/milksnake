@@ -1,4 +1,5 @@
 """milksnake.agent.
+
 ===================
 SNMP agent implementation built on top of pysnmp's asyncio carrier.
 
@@ -6,6 +7,8 @@ This agent listens on a UDP port and responds to GET requests based on an
 in-memory database populated from a walkfile. Communities and port are
 configured via the ``Config`` object.
 """
+
+from typing import Any
 
 from pyasn1.codec.ber import decoder, encoder
 from pysnmp.carrier.asyncio.dgram import udp
@@ -68,7 +71,13 @@ class Agent:
         self._dispatcher.job_finished(1)
         self._dispatcher.close_dispatcher()
 
-    def _dispatcher_receive_callback(self, dispatcher, domain, address, message):
+    def _dispatcher_receive_callback(
+        self,
+        dispatcher: Any,
+        domain: Any,
+        address: tuple[str, int],
+        message: bytes,
+    ) -> bytes:
         """Handle an incoming SNMP message and send a response.
 
         Parameters
@@ -84,8 +93,9 @@ class Agent:
 
         Returns
         -------
-        Any
+        bytes
             The remaining undecoded part of the message as required by pysnmp.
+
         """
         version = api.decodeMessageVersion(message)
         module = api.PROTOCOL_MODULES[version]
@@ -106,7 +116,12 @@ class Agent:
         dispatcher.send_message(encoder.encode(response), domain, address)
         return message
 
-    def _fill_response(self, request_pdu, response_pdu, module):
+    def _fill_response(
+        self,
+        request_pdu: Any,
+        response_pdu: Any,
+        module: Any,
+    ) -> list[tuple[Any, int]]:
         variable_bindings = []
         errors = []
         if request_pdu.isSameTypeWith(module.GetRequestPDU()):
@@ -115,19 +130,25 @@ class Agent:
             errors.extend(new_errors)
         elif request_pdu.isSameTypeWith(module.GetNextRequestPDU()):
             new_variable_bindings, new_errors = self._handle_get_next(
-                module, request_pdu
+                module,
+                request_pdu,
             )
             variable_bindings.extend(new_variable_bindings)
             errors.extend(new_errors)
         else:
-            raise ValueError("Unsupported PDU type")
+            msg = "Unsupported PDU type"
+            raise ValueError(msg)
 
         module.apiPDU.set_varbinds(response_pdu, variable_bindings)
         for error_func, idx in errors:
             error_func(response_pdu, idx)
         return errors
 
-    def _handle_get(self, module, request_pdu):
+    def _handle_get(
+        self,
+        module: Any,
+        request_pdu: Any,
+    ) -> tuple[list[tuple[Any, Any]], list[tuple[Any, int]]]:
         errors = []
         variable_bindings = []
         for idx, (oid, value) in enumerate(module.apiPDU.get_varbinds(request_pdu)):
@@ -144,7 +165,11 @@ class Agent:
             variable_bindings.append((oid, asn_value))
         return variable_bindings, errors
 
-    def _handle_get_next(self, module, request_pdu):
+    def _handle_get_next(
+        self,
+        module: Any,
+        request_pdu: Any,
+    ) -> tuple[list[tuple[Any, Any]], list[tuple[Any, int]]]:
         variable_bindings = []
         errors = []
         for idx, (oid, _) in enumerate(module.apiPDU.get_varbinds(request_pdu)):
@@ -163,7 +188,11 @@ class Agent:
                 break
         return variable_bindings, errors
 
-    def _verify_community(self, community: str, version: int) -> bool:
+    def _verify_community(
+        self,
+        community: str,
+        version: int | None = None,
+    ) -> bool:
         """Validate the community string for this request.
 
         For now this checks read community only and ignores SNMP version.
@@ -182,18 +211,22 @@ class Agent:
         return entry
 
     @staticmethod
-    def _create_asn_value(type: str, value: str, module):
+    def _create_asn_value(
+        type_name: str,
+        value: str,
+        module: Any,
+    ) -> Any:
         """Construct a pysnmp ASN.1 value from a textual type and value.
 
         Supported types: ``INTEGER``, ``STRING``.
         """
-        match type:
+        match type_name:
             case "INTEGER":
                 return module.Integer(int(value))
             case "STRING":
                 return module.OctetString(value)
             case _:
-                return module.OctetString(f"Unsupported type: {type}")
+                return module.OctetString(f"Unsupported type: {type_name}")
 
     @staticmethod
     def _build_database(entries: list[Entry]) -> Database:

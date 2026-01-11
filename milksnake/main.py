@@ -23,7 +23,7 @@ def _read_walkfiles(walkfiles: list[str]) -> list[Entry]:
     """
     all_entries = []
     for walkfile in walkfiles:
-        with open(walkfile, "r", encoding="utf-8") as f:
+        with open(walkfile, encoding="utf-8") as f:
             entries = list(parse_walkfile(f))
         print(f"Loaded {len(entries)} entries from {walkfile}")
         all_entries.extend(entries)
@@ -65,7 +65,10 @@ def _parse_args() -> argparse.Namespace:
         "-w",
         type=str,
         action="append",
-        help=f"Path to walkfile - can be specified multiple times (default: {Config.DEFAULT_WALKFILE})",
+        help=(
+            "Path to walkfile - can be specified multiple times "
+            f"(default: {Config.DEFAULT_WALKFILE})"
+        ),
     )
     return parser.parse_args()
 

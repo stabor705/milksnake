@@ -1,15 +1,17 @@
 import threading
 from io import StringIO
-from pysnmp.hlapi.asyncio import (
-    SnmpEngine,
-    get_cmd,
-    CommunityData,
-    UdpTransportTarget,
-    ContextData,
-    ObjectType,
-    ObjectIdentity,
-)
+
 import pytest
+from pysnmp.hlapi.asyncio import (
+    CommunityData,
+    ContextData,
+    ObjectIdentity,
+    ObjectType,
+    SnmpEngine,
+    UdpTransportTarget,
+    get_cmd,
+)
+
 from milksnake.agent import Agent
 from milksnake.config import Config
 from milksnake.walkfile import VariableBindingEntry, parse_walkfile
@@ -130,23 +132,23 @@ async def test_agent():
     agent = Agent(entries, port=9161)
     thread = threading.Thread(target=agent.run, daemon=True)
     thread.start()
-    snmpEngine = SnmpEngine()
+    snmp_engine = SnmpEngine()
 
     # Act
     iterator = get_cmd(
-        snmpEngine,
+        snmp_engine,
         CommunityData("public", mpModel=1),
         await UdpTransportTarget.create(("127.0.0.1", 9161), timeout=1, retries=0),
         ContextData(),
         ObjectType(ObjectIdentity("1.2.3")),
     )
-    errorIndication, errorStatus, errorIndex, varBinds = await iterator
+    error_indication, error_status, error_index, var_binds = await iterator
 
     # Assert
-    assert errorIndication is None
-    assert not errorStatus
-    assert len(varBinds) == 1
-    oid, val = varBinds[0]
+    assert error_indication is None
+    assert not error_status
+    assert len(var_binds) == 1
+    oid, val = var_binds[0]
     assert str(oid) == "1.2.3"
     assert str(val) == "test"
 
