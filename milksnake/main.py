@@ -81,9 +81,7 @@ def _load_config(args: argparse.Namespace) -> Config:
         config = Config.from_defaults()
         print("Using default configuration")
 
-    config.port = (
-        args.port if args.port is not None else config.port
-    )
+    config.port = args.port if args.port is not None else config.port
     config.read_community = (
         args.read_community
         if args.read_community is not None
@@ -99,9 +97,7 @@ def _load_config(args: argparse.Namespace) -> Config:
         if args.trap_community is not None
         else config.trap_community
     )
-    config.walkfiles = (
-        args.walkfile if args.walkfile is not None else config.walkfiles
-    )
+    config.walkfiles = args.walkfile if args.walkfile is not None else config.walkfiles
 
     return config
 

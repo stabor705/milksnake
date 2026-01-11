@@ -7,7 +7,7 @@ help:
 	@echo "  make install-dev  - Install project with dev dependencies"
 	@echo "  make test         - Run tests"
 	@echo "  make lint         - Run linter (ruff)"
-	@echo "  make format       - Format code with black and ruff"
+	@echo "  make format       - Format code with black"
 	@echo "  make run          - Run the milksnake application (default settings)"
 	@echo "  make run-config   - Run with config.yaml"
 	@echo "  make run-dev      - Run on port 8080 for development"
@@ -32,7 +32,6 @@ lint:
 # Format code
 format:
 	uv run black .
-	uv run ruff check --fix .
 
 # Run the application
 run:
