@@ -104,7 +104,12 @@ class Agent:
 
         community = module.apiMessage.get_community(request)
         community_str = str(community.prettyPrint())
-        if not self._verify_community(community_str):
+
+        # Check if community is valid for either read or write operations
+        # The specific operation type check happens in the handler methods
+        if not self._verify_community(community_str) and not self._verify_community(
+            community_str, write=True
+        ):
             print(f"Invalid community string from {address}")
             return message
 
@@ -112,7 +117,7 @@ class Agent:
         response_pdu = module.apiMessage.get_pdu(response)
         request_pdu = module.apiMessage.get_pdu(request)
 
-        self._fill_response(request_pdu, response_pdu, module)
+        self._fill_response(request_pdu, response_pdu, module, community_str)
 
         dispatcher.send_message(encoder.encode(response), domain, address)
         return message
@@ -122,6 +127,7 @@ class Agent:
         request_pdu: Any,  # noqa: ANN401, could not find type for pysnmp PDU
         response_pdu: Any,  # noqa: ANN401
         module: types.ModuleType,
+        community: str,
     ) -> list[tuple[Callable[[Any, int], None], int]]:
         variable_bindings: list[tuple[Any, Any]] = []
         errors: list[tuple[Callable[[Any, int], None], int]] = []
@@ -133,6 +139,14 @@ class Agent:
             new_variable_bindings, new_errors = self._handle_get_next(
                 module,
                 request_pdu,
+            )
+            variable_bindings.extend(new_variable_bindings)
+            errors.extend(new_errors)
+        elif request_pdu.isSameTypeWith(module.SetRequestPDU()):
+            new_variable_bindings, new_errors = self._handle_set(
+                module,
+                request_pdu,
+                community,
             )
             variable_bindings.extend(new_variable_bindings)
             errors.extend(new_errors)
@@ -189,11 +203,106 @@ class Agent:
                 break
         return variable_bindings, errors
 
-    def _verify_community(self, community: str) -> bool:
+    def _handle_set(
+        self,
+        module: types.ModuleType,
+        request_pdu: Any,  # noqa: ANN401, could not find type for pysnmp PDU
+        community: str,
+    ) -> tuple[list[tuple[Any, Any]], list[tuple[Callable[[Any, int], None], int]]]:
+        """Handle an SNMP SET request.
+
+        Parameters
+        ----------
+        module:
+            The pysnmp protocol module for the SNMP version.
+        request_pdu:
+            The SET request PDU.
+        community:
+            The community string from the request.
+
+        Returns
+        -------
+        tuple
+            A tuple of (variable_bindings, errors) where variable_bindings contains
+            the OID-value pairs to return, and errors contains any error setters.
+        """
+        variable_bindings: list[tuple[Any, Any]] = []
+        errors: list[tuple[Callable[[Any, int], None], int]] = []
+
+        # Verify write community
+        if not self._verify_community(community, write=True):
+            print(f"SET rejected: invalid write community '{community}'")
+            # Return noAccess error (error status 6) for first varbind
+            for idx, (oid, value) in enumerate(module.apiPDU.get_varbinds(request_pdu)):
+                errors.append((self._make_error_setter(module, 6), idx))  # noqa: PLR2004
+                variable_bindings.append((oid, value))
+                break
+            return variable_bindings, errors
+
+        for idx, (oid, value) in enumerate(module.apiPDU.get_varbinds(request_pdu)):
+            oid_str = str(oid)
+            entry = self._find_entry_for_oid(oid_str)
+
+            if entry is None:
+                # OID doesn't exist - return noCreation error (error status 11)
+                errors.append((self._make_error_setter(module, 11), idx))  # noqa: PLR2004
+                variable_bindings.append((oid, value))
+                break
+
+            # Convert ASN.1 value to string and update the database
+            new_value = Asn1Converter.asn_value_to_string(value)
+            entry.value = new_value
+            self.database[oid_str] = entry
+
+            # Return the new value in the response
+            asn_value = Asn1Converter.create_asn_value(entry.type, new_value, module)
+            variable_bindings.append((oid, asn_value))
+
+        return variable_bindings, errors
+
+    @staticmethod
+    def _make_error_setter(
+        module: types.ModuleType,
+        error_status: int,
+    ) -> Callable[[Any, int], None]:
+        """Create an error setter function for a given error status code.
+
+        Parameters
+        ----------
+        module:
+            The pysnmp protocol module.
+        error_status:
+            The SNMP error status code (e.g., 6 for noAccess, 11 for noCreation).
+
+        Returns
+        -------
+        Callable
+            A function that sets the error status and index on a PDU.
+        """
+
+        def setter(pdu: Any, idx: int) -> None:
+            module.apiPDU.set_error_status(pdu, error_status)
+            module.apiPDU.set_error_index(pdu, idx + 1)  # SNMP uses 1-based indexing
+
+        return setter
+
+    def _verify_community(self, community: str, write: bool = False) -> bool:
         """Validate the community string for this request.
 
-        For now this checks read community only and ignores SNMP version.
+        Parameters
+        ----------
+        community:
+            The community string from the SNMP request.
+        write:
+            If True, check against write_community; otherwise check read_community.
+
+        Returns
+        -------
+        bool
+            True if the community string is valid for the requested operation.
         """
+        if write:
+            return community == self.config.write_community
         return community == self.config.read_community
 
     def _find_entry_for_oid(self, oid: str) -> VariableBindingEntry | None:
@@ -262,3 +371,20 @@ class Asn1Converter:
         type_name = Asn1Converter._ASN_TYPE_MAP[asn_type]
         asn_class = getattr(module, type_name)
         return asn_class(converter(value))
+
+    @staticmethod
+    def asn_value_to_string(value: Any) -> str:  # noqa: ANN401
+        """Convert a pysnmp ASN.1 value to a string representation.
+
+        Parameters
+        ----------
+        value:
+            A pysnmp ASN.1 value object.
+
+        Returns
+        -------
+        str
+            The string representation of the value suitable for storage.
+        """
+        # Use prettyPrint() for most types as it gives a clean string representation
+        return str(value.prettyPrint())

@@ -459,7 +459,7 @@ class TestAgentFillResponse:
 
         # Act
         errors = agent_with_entries._fill_response(  # noqa: SLF001
-            request_pdu, response_pdu, snmp_module
+            request_pdu, response_pdu, snmp_module, "public"
         )
 
         # Assert
@@ -481,7 +481,7 @@ class TestAgentFillResponse:
 
         # Act
         errors = agent_with_entries._fill_response(  # noqa: SLF001
-            request_pdu, response_pdu, snmp_module
+            request_pdu, response_pdu, snmp_module, "public"
         )
 
         # Assert
@@ -493,8 +493,8 @@ class TestAgentFillResponse:
         snmp_module: types.ModuleType,
     ) -> None:
         """Test _fill_response raises error for unsupported PDU type."""
-        # Arrange - use SetRequestPDU which is not supported
-        request_pdu = snmp_module.SetRequestPDU()
+        # Arrange - use GetBulkRequestPDU which is not supported
+        request_pdu = snmp_module.GetBulkRequestPDU()
         response_pdu = snmp_module.GetResponsePDU()
         oid = snmp_module.ObjectIdentifier("1.3.6.1.2.1.1.1.0")
         snmp_module.apiPDU.set_varbinds(request_pdu, [(oid, snmp_module.Null())])
@@ -502,7 +502,7 @@ class TestAgentFillResponse:
         # Act & Assert
         with pytest.raises(ValueError, match="Unsupported PDU type"):
             agent_with_entries._fill_response(  # noqa: SLF001
-                request_pdu, response_pdu, snmp_module
+                request_pdu, response_pdu, snmp_module, "public"
             )
 
 
@@ -926,7 +926,397 @@ class TestFillResponseErrors:
         snmp_module.apiPDU.set_varbinds(request_pdu, [(oid, snmp_module.Null())])
 
         # Act
-        errors = agent._fill_response(request_pdu, response_pdu, snmp_module)  # noqa: SLF001
+        errors = agent._fill_response(request_pdu, response_pdu, snmp_module, "public")  # noqa: SLF001
 
         # Assert - errors should have been set
         assert len(errors) == 1
+
+
+# =============================================================================
+# SNMP SET Handler Tests
+# =============================================================================
+
+
+class TestHandleSet:
+    """Tests for SNMP SET request handling."""
+
+    @pytest.fixture
+    def snmp_module(self) -> types.ModuleType:
+        """Get the SNMPv2c protocol module for testing."""
+        return api.PROTOCOL_MODULES[api.SNMP_VERSION_2C]
+
+    @pytest.fixture
+    def agent_with_entries(self) -> Agent:
+        """Create an agent with sample entries for SET testing."""
+        entries = [
+            VariableBindingEntry(
+                oid="1.3.6.1.2.1.1.1.0",
+                type="STRING",
+                value="Original Value",
+            ),
+            VariableBindingEntry(
+                oid="1.3.6.1.2.1.1.5.0",
+                type="STRING",
+                value="Original Hostname",
+            ),
+            VariableBindingEntry(
+                oid="1.3.6.1.2.1.1.6.0",
+                type="INTEGER",
+                value="42",
+            ),
+        ]
+        config = Config(port=19168, read_community="public", write_community="private")
+        return Agent(entries, config)
+
+    def test_handle_set_with_valid_write_community(
+        self,
+        agent_with_entries: Agent,
+        snmp_module: types.ModuleType,
+    ) -> None:
+        """Test SET request with valid write community updates the value."""
+        # Arrange
+        request_pdu = snmp_module.SetRequestPDU()
+        oid = snmp_module.ObjectIdentifier("1.3.6.1.2.1.1.1.0")
+        new_value = snmp_module.OctetString("New Value")
+        snmp_module.apiPDU.set_varbinds(request_pdu, [(oid, new_value)])
+
+        # Act
+        variable_bindings, errors = agent_with_entries._handle_set(  # noqa: SLF001
+            snmp_module, request_pdu, "private"
+        )
+
+        # Assert - no errors, value updated
+        assert len(errors) == 0
+        assert len(variable_bindings) == 1
+        # Verify database was updated
+        entry = agent_with_entries.database["1.3.6.1.2.1.1.1.0"]
+        assert entry.value == "New Value"
+
+    def test_handle_set_with_invalid_write_community(
+        self,
+        agent_with_entries: Agent,
+        snmp_module: types.ModuleType,
+    ) -> None:
+        """Test SET request with invalid write community is rejected."""
+        # Arrange
+        request_pdu = snmp_module.SetRequestPDU()
+        oid = snmp_module.ObjectIdentifier("1.3.6.1.2.1.1.1.0")
+        new_value = snmp_module.OctetString("New Value")
+        snmp_module.apiPDU.set_varbinds(request_pdu, [(oid, new_value)])
+
+        # Act
+        variable_bindings, errors = agent_with_entries._handle_set(  # noqa: SLF001
+            snmp_module, request_pdu, "wrong_community"
+        )
+
+        # Assert - error returned
+        assert len(errors) == 1
+        # Value should NOT be updated
+        entry = agent_with_entries.database["1.3.6.1.2.1.1.1.0"]
+        assert entry.value == "Original Value"
+
+    def test_handle_set_with_read_community_rejected(
+        self,
+        agent_with_entries: Agent,
+        snmp_module: types.ModuleType,
+    ) -> None:
+        """Test SET request with read community (not write) is rejected."""
+        # Arrange
+        request_pdu = snmp_module.SetRequestPDU()
+        oid = snmp_module.ObjectIdentifier("1.3.6.1.2.1.1.1.0")
+        new_value = snmp_module.OctetString("New Value")
+        snmp_module.apiPDU.set_varbinds(request_pdu, [(oid, new_value)])
+
+        # Act
+        variable_bindings, errors = agent_with_entries._handle_set(  # noqa: SLF001
+            snmp_module,
+            request_pdu,
+            "public",  # read community, not write
+        )
+
+        # Assert - error returned
+        assert len(errors) == 1
+        # Value should NOT be updated
+        entry = agent_with_entries.database["1.3.6.1.2.1.1.1.0"]
+        assert entry.value == "Original Value"
+
+    def test_handle_set_nonexistent_oid(
+        self,
+        agent_with_entries: Agent,
+        snmp_module: types.ModuleType,
+    ) -> None:
+        """Test SET request for nonexistent OID returns error."""
+        # Arrange
+        request_pdu = snmp_module.SetRequestPDU()
+        oid = snmp_module.ObjectIdentifier("1.3.6.1.2.1.99.99.0")
+        new_value = snmp_module.OctetString("New Value")
+        snmp_module.apiPDU.set_varbinds(request_pdu, [(oid, new_value)])
+
+        # Act
+        variable_bindings, errors = agent_with_entries._handle_set(  # noqa: SLF001
+            snmp_module, request_pdu, "private"
+        )
+
+        # Assert - noCreation error returned
+        assert len(errors) == 1
+
+    def test_handle_set_integer_value(
+        self,
+        agent_with_entries: Agent,
+        snmp_module: types.ModuleType,
+    ) -> None:
+        """Test SET request with integer value."""
+        # Arrange
+        request_pdu = snmp_module.SetRequestPDU()
+        oid = snmp_module.ObjectIdentifier("1.3.6.1.2.1.1.6.0")
+        new_value = snmp_module.Integer(100)
+        snmp_module.apiPDU.set_varbinds(request_pdu, [(oid, new_value)])
+
+        # Act
+        variable_bindings, errors = agent_with_entries._handle_set(  # noqa: SLF001
+            snmp_module, request_pdu, "private"
+        )
+
+        # Assert - no errors, value updated
+        assert len(errors) == 0
+        entry = agent_with_entries.database["1.3.6.1.2.1.1.6.0"]
+        assert entry.value == "100"
+
+    def test_handle_set_multiple_varbinds(
+        self,
+        agent_with_entries: Agent,
+        snmp_module: types.ModuleType,
+    ) -> None:
+        """Test SET request with multiple variable bindings."""
+        # Arrange
+        request_pdu = snmp_module.SetRequestPDU()
+        oid1 = snmp_module.ObjectIdentifier("1.3.6.1.2.1.1.1.0")
+        oid2 = snmp_module.ObjectIdentifier("1.3.6.1.2.1.1.5.0")
+        value1 = snmp_module.OctetString("New Description")
+        value2 = snmp_module.OctetString("New Hostname")
+        snmp_module.apiPDU.set_varbinds(request_pdu, [(oid1, value1), (oid2, value2)])
+
+        # Act
+        variable_bindings, errors = agent_with_entries._handle_set(  # noqa: SLF001
+            snmp_module, request_pdu, "private"
+        )
+
+        # Assert - no errors, both values updated
+        assert len(errors) == 0
+        assert len(variable_bindings) == 2
+        assert (
+            agent_with_entries.database["1.3.6.1.2.1.1.1.0"].value == "New Description"
+        )
+        assert agent_with_entries.database["1.3.6.1.2.1.1.5.0"].value == "New Hostname"
+
+
+class TestFillResponseSet:
+    """Tests for _fill_response handling of SET requests."""
+
+    @pytest.fixture
+    def snmp_module(self) -> types.ModuleType:
+        """Get the SNMPv2c protocol module for testing."""
+        return api.PROTOCOL_MODULES[api.SNMP_VERSION_2C]
+
+    @pytest.fixture
+    def agent_with_entries(self) -> Agent:
+        """Create an agent with sample entries."""
+        entries = [
+            VariableBindingEntry(
+                oid="1.3.6.1.2.1.1.1.0",
+                type="STRING",
+                value="Test Device",
+            ),
+        ]
+        config = Config(port=19169, read_community="public", write_community="private")
+        return Agent(entries, config)
+
+    def test_fill_response_set_request(
+        self,
+        agent_with_entries: Agent,
+        snmp_module: types.ModuleType,
+    ) -> None:
+        """Test _fill_response handles SET request correctly."""
+        # Arrange
+        request_pdu = snmp_module.SetRequestPDU()
+        response_pdu = snmp_module.GetResponsePDU()
+        oid = snmp_module.ObjectIdentifier("1.3.6.1.2.1.1.1.0")
+        new_value = snmp_module.OctetString("Updated Value")
+        snmp_module.apiPDU.set_varbinds(request_pdu, [(oid, new_value)])
+
+        # Act
+        errors = agent_with_entries._fill_response(  # noqa: SLF001
+            request_pdu, response_pdu, snmp_module, "private"
+        )
+
+        # Assert
+        assert len(errors) == 0
+        # Verify database was updated
+        assert agent_with_entries.database["1.3.6.1.2.1.1.1.0"].value == "Updated Value"
+
+
+class TestDispatcherCallbackSet:
+    """Tests for dispatcher callback handling SET requests."""
+
+    @pytest.fixture
+    def snmp_module(self) -> types.ModuleType:
+        """Get the SNMPv2c protocol module for testing."""
+        return api.PROTOCOL_MODULES[api.SNMP_VERSION_2C]
+
+    @pytest.fixture
+    def agent(self) -> Agent:
+        """Create an agent for callback testing."""
+        entries = [
+            VariableBindingEntry(
+                oid="1.3.6.1.2.1.1.1.0",
+                type="STRING",
+                value="Test System Description",
+            ),
+        ]
+        config = Config(port=19170, read_community="public", write_community="private")
+        return Agent(entries, config)
+
+    def test_callback_with_set_request(
+        self,
+        agent: Agent,
+        snmp_module: types.ModuleType,
+    ) -> None:
+        """Test callback processes valid SET request correctly."""
+        from pyasn1.codec.ber import encoder
+
+        # Build a valid SNMP SET request message
+        request = snmp_module.Message()
+        snmp_module.apiMessage.set_defaults(request)
+        snmp_module.apiMessage.set_community(request, "private")
+
+        request_pdu = snmp_module.SetRequestPDU()
+        snmp_module.apiPDU.set_defaults(request_pdu)
+        oid = snmp_module.ObjectIdentifier("1.3.6.1.2.1.1.1.0")
+        new_value = snmp_module.OctetString("New Description")
+        snmp_module.apiPDU.set_varbinds(request_pdu, [(oid, new_value)])
+        snmp_module.apiMessage.set_pdu(request, request_pdu)
+
+        message = encoder.encode(request)
+
+        # Mock dispatcher
+        mock_dispatcher = MagicMock()
+
+        # Act
+        result = agent._dispatcher_receive_callback(  # noqa: SLF001
+            mock_dispatcher,
+            ("udp", "127.0.0.1"),
+            ("127.0.0.1", 12345),
+            message,
+        )
+
+        # Assert - dispatcher should have sent a response
+        mock_dispatcher.send_message.assert_called_once()
+        # Verify database was updated
+        assert agent.database["1.3.6.1.2.1.1.1.0"].value == "New Description"
+
+
+class TestAsn1ConverterValueToString:
+    """Tests for Asn1Converter.asn_value_to_string method."""
+
+    @pytest.fixture
+    def snmp_module(self) -> types.ModuleType:
+        """Get the SNMPv2c protocol module for testing."""
+        return api.PROTOCOL_MODULES[api.SNMP_VERSION_2C]
+
+    def test_asn_value_to_string_octet_string(
+        self, snmp_module: types.ModuleType
+    ) -> None:
+        """Test converting OctetString to string."""
+        value = snmp_module.OctetString("Hello World")
+        result = Asn1Converter.asn_value_to_string(value)
+        assert result == "Hello World"
+
+    def test_asn_value_to_string_integer(self, snmp_module: types.ModuleType) -> None:
+        """Test converting Integer to string."""
+        value = snmp_module.Integer(42)
+        result = Asn1Converter.asn_value_to_string(value)
+        assert result == "42"
+
+    def test_asn_value_to_string_counter32(self, snmp_module: types.ModuleType) -> None:
+        """Test converting Counter32 to string."""
+        value = snmp_module.Counter32(123456)
+        result = Asn1Converter.asn_value_to_string(value)
+        assert result == "123456"
+
+
+class TestVerifyCommunityWrite:
+    """Tests for _verify_community with write mode."""
+
+    @pytest.fixture
+    def agent(self) -> Agent:
+        """Create an agent with distinct read and write communities."""
+        entries = [
+            VariableBindingEntry(
+                oid="1.3.6.1.2.1.1.1.0",
+                type="STRING",
+                value="Test",
+            ),
+        ]
+        config = Config(
+            port=19171,
+            read_community="read_only",
+            write_community="read_write",
+        )
+        return Agent(entries, config)
+
+    def test_verify_community_write_mode_correct(self, agent: Agent) -> None:
+        """Test write community verification accepts correct write community."""
+        assert agent._verify_community("read_write", write=True) is True  # noqa: SLF001
+
+    def test_verify_community_write_mode_read_community(self, agent: Agent) -> None:
+        """Test write community verification rejects read community."""
+        assert agent._verify_community("read_only", write=True) is False  # noqa: SLF001
+
+    def test_verify_community_write_mode_wrong(self, agent: Agent) -> None:
+        """Test write community verification rejects wrong community."""
+        assert agent._verify_community("wrong", write=True) is False  # noqa: SLF001
+
+    def test_verify_community_read_mode_still_works(self, agent: Agent) -> None:
+        """Test read mode verification still works correctly."""
+        assert agent._verify_community("read_only", write=False) is True  # noqa: SLF001
+        assert agent._verify_community("read_only") is True  # noqa: SLF001
+
+
+class TestMakeErrorSetter:
+    """Tests for _make_error_setter helper method."""
+
+    @pytest.fixture
+    def snmp_module(self) -> types.ModuleType:
+        """Get the SNMPv2c protocol module for testing."""
+        return api.PROTOCOL_MODULES[api.SNMP_VERSION_2C]
+
+    def test_make_error_setter_sets_status_and_index(
+        self, snmp_module: types.ModuleType
+    ) -> None:
+        """Test that error setter sets both status and index."""
+        # Arrange
+        entries = [
+            VariableBindingEntry(
+                oid="1.3.6.1.2.1.1.1.0",
+                type="STRING",
+                value="Test",
+            ),
+        ]
+        config = Config(port=19172, read_community="public", write_community="private")
+        agent = Agent(entries, config)
+
+        response_pdu = snmp_module.GetResponsePDU()
+        # Add a varbind so error index is valid
+        oid = snmp_module.ObjectIdentifier("1.3.6.1.2.1.1.1.0")
+        snmp_module.apiPDU.set_varbinds(response_pdu, [(oid, snmp_module.Null())])
+
+        error_setter = agent._make_error_setter(snmp_module, 6)  # noqa: SLF001
+
+        # Act
+        error_setter(response_pdu, 0)
+
+        # Assert
+        error_status = snmp_module.apiPDU.get_error_status(response_pdu)
+        error_index = snmp_module.apiPDU.get_error_index(response_pdu)
+        assert int(error_status) == 6  # noAccess
+        assert int(error_index) == 1  # 1-based index
