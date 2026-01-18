@@ -61,7 +61,8 @@ class Agent:
         self._dispatcher.job_started(1)
         try:
             print(
-                f"Started on {self.config.interface}:{self.config.port}. Press Ctrl-C to stop"
+                f"Started on {self.config.interface}:{self.config.port}. "
+                f"Press Ctrl-C to stop"
             )
             self._dispatcher.run_dispatcher()
 
