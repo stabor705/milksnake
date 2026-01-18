@@ -94,10 +94,3 @@ def _remove_leading_dot(oid: str) -> str:
     if oid.startswith("."):
         return oid[1:]
     return oid
-
-
-if __name__ == "__main__":
-    with Path("walkfile.txt").open("r", encoding="utf-8") as f:
-        entries = parse_walkfile(f)
-        for entry in entries:
-            print(entry)

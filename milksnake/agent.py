@@ -104,7 +104,7 @@ class Agent:
 
         community = module.apiMessage.get_community(request)
         community_str = str(community.prettyPrint())
-        if not self._verify_community(community_str, version):
+        if not self._verify_community(community_str):
             print(f"Invalid community string from {address}")
             return message
 
@@ -155,7 +155,7 @@ class Agent:
         for idx, (oid, value) in enumerate(module.apiPDU.get_varbinds(request_pdu)):
             entry = self._find_entry_for_oid(str(oid))
             if entry is None:
-                errors.append((module.apiPDU.set_no_such_name_error, idx))
+                errors.append((module.apiPDU.set_no_such_instance_error, idx))
                 variable_bindings.append((oid, value))
                 break
             asn_value = Asn1Converter.create_asn_value(
@@ -185,7 +185,7 @@ class Agent:
                 variable_bindings.append((module.ObjectIdentifier(next_oid), asn_value))
             else:
                 print(f"End of MIB reached: {oid}")
-                errors.append((module.apiPDU.set_end_of_mib_view_error, idx))
+                errors.append((module.apiPDU.set_end_of_mib_error, idx))
                 break
         return variable_bindings, errors
 
