@@ -1,20 +1,10 @@
 """Unit tests for the Agent class in milksnake.agent module."""
 
-import threading
 import types
 from io import StringIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
-from pysnmp.hlapi.asyncio import (
-    CommunityData,
-    ContextData,
-    ObjectIdentity,
-    ObjectType,
-    SnmpEngine,
-    UdpTransportTarget,
-    get_cmd,
-)
 from pysnmp.proto import api
 
 from milksnake.agent import Agent, Asn1Converter
@@ -771,7 +761,7 @@ class TestDispatcherCallback:
         mock_dispatcher = MagicMock()
 
         # Act
-        result = agent._dispatcher_receive_callback(  # noqa: SLF001
+        agent._dispatcher_receive_callback(  # noqa: SLF001
             mock_dispatcher,
             ("udp", "127.0.0.1"),
             ("127.0.0.1", 12345),
@@ -806,7 +796,7 @@ class TestDispatcherCallback:
         mock_dispatcher = MagicMock()
 
         # Act
-        result = agent._dispatcher_receive_callback(  # noqa: SLF001
+        agent._dispatcher_receive_callback(  # noqa: SLF001
             mock_dispatcher,
             ("udp", "127.0.0.1"),
             ("127.0.0.1", 12345),
@@ -841,7 +831,7 @@ class TestDispatcherCallback:
         mock_dispatcher = MagicMock()
 
         # Act
-        result = agent._dispatcher_receive_callback(  # noqa: SLF001
+        agent._dispatcher_receive_callback(  # noqa: SLF001
             mock_dispatcher,
             ("udp", "127.0.0.1"),
             ("127.0.0.1", 12345),
@@ -926,7 +916,9 @@ class TestFillResponseErrors:
         snmp_module.apiPDU.set_varbinds(request_pdu, [(oid, snmp_module.Null())])
 
         # Act
-        errors = agent._fill_response(request_pdu, response_pdu, snmp_module, "public")  # noqa: SLF001
+        errors = agent._fill_response(
+            request_pdu, response_pdu, snmp_module, "public"
+        )  # noqa: SLF001
 
         # Assert - errors should have been set
         assert len(errors) == 1
@@ -1202,7 +1194,7 @@ class TestDispatcherCallbackSet:
         mock_dispatcher = MagicMock()
 
         # Act
-        result = agent._dispatcher_receive_callback(  # noqa: SLF001
+        agent._dispatcher_receive_callback(  # noqa: SLF001
             mock_dispatcher,
             ("udp", "127.0.0.1"),
             ("127.0.0.1", 12345),

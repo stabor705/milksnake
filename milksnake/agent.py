@@ -234,7 +234,9 @@ class Agent:
             print(f"SET rejected: invalid write community '{community}'")
             # Return noAccess error (error status 6) for first varbind
             for idx, (oid, value) in enumerate(module.apiPDU.get_varbinds(request_pdu)):
-                errors.append((self._make_error_setter(module, 6), idx))  # noqa: PLR2004
+                errors.append(
+                    (self._make_error_setter(module, 6), idx)
+                )  # noqa: PLR2004
                 variable_bindings.append((oid, value))
                 break
             return variable_bindings, errors
@@ -245,7 +247,9 @@ class Agent:
 
             if entry is None:
                 # OID doesn't exist - return noCreation error (error status 11)
-                errors.append((self._make_error_setter(module, 11), idx))  # noqa: PLR2004
+                errors.append(
+                    (self._make_error_setter(module, 11), idx)
+                )  # noqa: PLR2004
                 variable_bindings.append((oid, value))
                 break
 
