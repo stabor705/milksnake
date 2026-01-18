@@ -11,6 +11,7 @@ def test_default_config():
     config = Config.from_defaults()
 
     # Assert
+    assert config.interface == "127.0.0.1"
     assert config.port == 9161
     assert config.read_community == "public"
     assert config.write_community == "private"
@@ -23,6 +24,7 @@ def test_config_from_file():
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         yaml.dump(
             {
+                "interface": "0.0.0.0",
                 "port": 1161,
                 "read_community": "test_read",
                 "write_community": "test_write",
@@ -38,6 +40,7 @@ def test_config_from_file():
         config = Config.from_file(temp_path)
 
         # Assert
+        assert config.interface == "0.0.0.0"
         assert config.port == 1161
         assert config.read_community == "test_read"
         assert config.write_community == "test_write"
@@ -59,6 +62,7 @@ def test_config_from_partial_file():
 
         # Assert
         assert config.port == 2000
+        assert config.interface == "127.0.0.1"
         assert config.read_community == "public"
         assert config.walkfiles == ["walkfile.txt"]
     finally:
@@ -75,6 +79,7 @@ def test_config_from_empty_file():
         config = Config.from_file(temp_path)
 
         # Assert
+        assert config.interface == "127.0.0.1"
         assert config.port == 9161
         assert config.read_community == "public"
         assert config.walkfiles == ["walkfile.txt"]
@@ -94,5 +99,21 @@ def test_config_multiple_walkfiles():
 
         # Assert
         assert config.walkfiles == ["file1.txt", "file2.txt", "file3.txt"]
+    finally:
+        Path(temp_path).unlink()
+
+
+def test_config_ipv6_interface():
+    # Arrange
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
+        yaml.dump({"interface": "::1", "port": 9161}, f)
+        temp_path = f.name
+
+    try:
+        # Act
+        config = Config.from_file(temp_path)
+
+        # Assert
+        assert config.interface == "::1"
     finally:
         Path(temp_path).unlink()

@@ -1,5 +1,8 @@
+interface: "127.0.0.1"
 port: 9161
 read_community: "public"
 write_community: "private"
 trap_community: "public"
-walkfile: "walkfile.txt"
+walkfiles:
+- "walkfile.txt"
+- "walkfile_2.txt"
