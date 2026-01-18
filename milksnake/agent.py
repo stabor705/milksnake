@@ -7,12 +7,13 @@ in-memory database populated from a walkfile. Communities and port are
 configured via the ``Config`` object.
 """
 
+import ipaddress
 import types
 from collections.abc import Callable
 from typing import Any, ClassVar
 
 from pyasn1.codec.ber import decoder, encoder
-from pysnmp.carrier.asyncio.dgram import udp
+from pysnmp.carrier.asyncio.dgram import udp, udp6
 from pysnmp.carrier.asyncio.dispatch import AsyncioDispatcher
 from pysnmp.proto import api
 from sortedcontainers import SortedDict
@@ -45,9 +46,10 @@ class Agent:
 
         self._dispatcher = AsyncioDispatcher()
         self._dispatcher.register_recv_callback(self._dispatcher_receive_callback)
+        transport_module, domain = self._get_transport_for_address(config.interface)
         self._dispatcher.register_transport(
-            udp.DOMAIN_NAME,
-            udp.UdpAsyncioTransport().open_server_mode(("127.0.0.1", config.port)),
+            domain,
+            transport_module.open_server_mode((config.interface, config.port)),
         )
 
     def run(self) -> None:
@@ -58,7 +60,9 @@ class Agent:
         """
         self._dispatcher.job_started(1)
         try:
-            print(f"Started on port {self.config.port}. Press Ctrl-C to stop")
+            print(
+                f"Started on {self.config.interface}:{self.config.port}. Press Ctrl-C to stop"
+            )
             self._dispatcher.run_dispatcher()
 
         except KeyboardInterrupt:
@@ -71,6 +75,14 @@ class Agent:
         """Request a graceful shutdown of the dispatcher loop."""
         self._dispatcher.job_finished(1)
         self._dispatcher.close_dispatcher()
+
+    @staticmethod
+    def _get_transport_for_address(address: str) -> tuple[type, tuple[str, ...]]:
+        """Return the appropriate transport module and domain for an IP address."""
+        addr = ipaddress.ip_address(address)
+        if addr.version == 6:
+            return udp6.Udp6AsyncioTransport(), udp6.DOMAIN_NAME
+        return udp.UdpAsyncioTransport(), udp.DOMAIN_NAME
 
     def _dispatcher_receive_callback(
         self,

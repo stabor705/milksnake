@@ -11,6 +11,8 @@ class Config:
 
     Attributes
     ----------
+    interface:
+        IP address to bind to (IPv4 or IPv6).
     port:
         UDP port for the agent to listen on.
     read_community:
@@ -23,12 +25,14 @@ class Config:
         List of paths to walkfiles used to populate the agent database.
     """
 
+    DEFAULT_INTERFACE: str = "127.0.0.1"
     DEFAULT_PORT: int = 9161
     DEFAULT_READ_COMMUNITY: str = "public"
     DEFAULT_WRITE_COMMUNITY: str = "private"
     DEFAULT_TRAP_COMMUNITY: str = "public"
     DEFAULT_WALKFILES: ClassVar[list[str]] = ["walkfile.txt"]
 
+    interface: str = DEFAULT_INTERFACE
     port: int = DEFAULT_PORT
     read_community: str = DEFAULT_READ_COMMUNITY
     write_community: str = DEFAULT_WRITE_COMMUNITY
@@ -49,6 +53,7 @@ class Config:
         walkfiles = data.get("walkfiles", cls.DEFAULT_WALKFILES)
 
         return cls(
+            interface=data.get("interface", cls.DEFAULT_INTERFACE),
             port=data.get("port", cls.DEFAULT_PORT),
             read_community=data.get("read_community", cls.DEFAULT_READ_COMMUNITY),
             write_community=data.get("write_community", cls.DEFAULT_WRITE_COMMUNITY),

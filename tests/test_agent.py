@@ -140,6 +140,24 @@ def test_build_database_with_three_files() -> None:
     assert len(agent.database) == expected_database_length
 
 
+def test_get_transport_for_ipv4() -> None:
+    """Test that IPv4 addresses use UDP transport."""
+    from pysnmp.carrier.asyncio.dgram import udp
+
+    transport, domain = Agent._get_transport_for_address("127.0.0.1")
+    assert domain == udp.DOMAIN_NAME
+    assert isinstance(transport, udp.UdpAsyncioTransport)
+
+
+def test_get_transport_for_ipv6() -> None:
+    """Test that IPv6 addresses use UDP6 transport."""
+    from pysnmp.carrier.asyncio.dgram import udp6
+
+    transport, domain = Agent._get_transport_for_address("::1")
+    assert domain == udp6.DOMAIN_NAME
+    assert isinstance(transport, udp6.Udp6AsyncioTransport)
+
+
 # =============================================================================
 # Asn1Converter Tests
 # =============================================================================
